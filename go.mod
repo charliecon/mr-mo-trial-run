@@ -4,7 +4,11 @@ go 1.23.3
 
 replace github.com/mypurecloud/terraform-provider-genesyscloud => ../../genesys_src/repos/terraform-provider-genesyscloud
 
-require github.com/mypurecloud/terraform-provider-genesyscloud v1.11.0
+require (
+	github.com/hashicorp/terraform-plugin-sdk/v2 v2.36.0
+	github.com/mypurecloud/platform-client-sdk-go/v150 v150.1.0
+	github.com/mypurecloud/terraform-provider-genesyscloud v1.11.0
+)
 
 require (
 	github.com/ProtonMail/go-crypto v1.1.3 // indirect
@@ -35,7 +39,6 @@ require (
 	github.com/hashicorp/terraform-json v0.24.0 // indirect
 	github.com/hashicorp/terraform-plugin-go v0.26.0 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.9.0 // indirect
-	github.com/hashicorp/terraform-plugin-sdk/v2 v2.36.0 // indirect
 	github.com/hashicorp/terraform-registry-address v0.2.4 // indirect
 	github.com/hashicorp/terraform-svchost v0.1.1 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
@@ -50,10 +53,10 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mozillazg/go-unidecode v0.2.0 // indirect
-	github.com/mypurecloud/platform-client-sdk-go/v150 v150.1.0 // indirect
 	github.com/nyaruka/phonenumbers v1.5.0 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
+	github.com/rjNemo/underscore v0.7.0 // indirect
 	github.com/sagikazarmark/locafero v0.6.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
