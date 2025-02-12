@@ -29,6 +29,14 @@ func (m *MrMo) Create() error {
 	return nil
 }
 
+func (m *MrMo) Delete() error {
+	diagErr := m.SchemaResource.DeleteContext(context.Background(), m.ResourceData, m.ProviderMeta)
+	if diagErr != nil {
+		return fmt.Errorf("%v", diagErr)
+	}
+	return nil
+}
+
 func (m *MrMo) InitMrMo(resourceType string, data map[string]any) (err error) {
 	m.ResourceType = resourceType
 	m.Data = data
