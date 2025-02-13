@@ -8,18 +8,18 @@ import (
 
 func main() {
 	var (
-		mrMo mrmo.MrMo
-
 		resourceType = "genesyscloud_routing_skill"
 		data         = map[string]any{
 			"name": "Test Routing Skill 1202",
 		}
 	)
 
-	err := mrMo.InitMrMo(resourceType, data)
+	log.Println("Retrieving Mr Mo instance")
+	mrMo, err := mrmo.GetMrMoInstance(resourceType, data)
 	if err != nil {
 		panic(err)
 	}
+	log.Println("Successfully retrieved Mr Mo instance")
 
 	log.Printf("Creating %s", resourceType)
 	err = mrMo.Create()

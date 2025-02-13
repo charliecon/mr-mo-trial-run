@@ -11,13 +11,15 @@ import (
 	"testing"
 )
 
+var mrMoInstance *MrMo
+
 type MrMo struct {
-	ResourceType string
-	Id           string
-	Data         map[string]any
-	ResourceData *schema.ResourceData
+	ResourceType   string
+	Id             string
+	Data           map[string]any
+	ResourceData   *schema.ResourceData
 	SchemaResource *schema.Resource
-	ProviderMeta any
+	ProviderMeta   any
 }
 
 func (m *MrMo) Create() error {
@@ -37,14 +39,23 @@ func (m *MrMo) Delete() error {
 	return nil
 }
 
-func (m *MrMo) InitMrMo(resourceType string, data map[string]any) (err error) {
+func GetMrMoInstance(resourceType string, data map[string]any) (_ *MrMo, err error) {
+	if mrMoInstance == nil {
+		mrMoInstance, err = newMrMo(resourceType, data)
+	}
+	return mrMoInstance, err
+}
+
+func newMrMo(resourceType string, data map[string]any) (*MrMo, error) {
+	var m MrMo
+
 	m.ResourceType = resourceType
 	m.Data = data
 
 	// initialise ProviderMeta
 	providerMeta, err := getProviderConfig()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	m.ProviderMeta = providerMeta
 
@@ -52,7 +63,7 @@ func (m *MrMo) InitMrMo(resourceType string, data map[string]any) (err error) {
 	allResources, _, _ := provider_registrar.GetAllResources()
 	schemaResource, ok := allResources[resourceType]
 	if !ok {
-		return fmt.Errorf("resource not found %s", resourceType)
+		return nil, fmt.Errorf("resource not found %s", resourceType)
 	}
 	m.SchemaResource = schemaResource
 
@@ -60,7 +71,7 @@ func (m *MrMo) InitMrMo(resourceType string, data map[string]any) (err error) {
 	resourceDataObject := createResourceDataObject(schemaResource.Schema, data)
 	m.ResourceData = resourceDataObject
 
-	return err
+	return &m, nil
 }
 
 func createResourceDataObject(routingSkillSchema map[string]*schema.Schema, data map[string]any) *schema.ResourceData {
