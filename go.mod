@@ -1,7 +1,11 @@
-module mr-mo-trial-run
+module github.com/charliecon/mr-mo-trial-run
 
 go 1.23.3
 
+// 1. clone https://github.com/MyPureCloud/terraform-provider-genesyscloud
+// 2. open branch mr-mo-testing
+// 3. change "../../genesys_src/repos/terraform-provider-genesyscloud" to the path of the cloned repo relative
+// to your current go project
 replace github.com/mypurecloud/terraform-provider-genesyscloud => ../../genesys_src/repos/terraform-provider-genesyscloud
 
 require (

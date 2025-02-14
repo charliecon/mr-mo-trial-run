@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/charliecon/mr-mo-trial-run/mrmo"
 	"log"
-	"mr-mo-trial-run/mrmo"
 	"time"
 )
 
