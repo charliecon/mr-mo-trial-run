@@ -1,0 +1,14 @@
+source:
+  orgId: <org ID>
+  orgName: SourceOrg
+  clientId: <client ID>
+  clientSecret: <client secret>
+targets:
+  - orgId: <org A ID>
+    orgName: OrgA
+    clientId: <client ID>
+    clientSecret: <client secret>
+  - orgId: <org B ID>
+    orgName: Org B
+    clientId: <client ID>
+    clientSecret: <client secret>

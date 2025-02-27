@@ -1,40 +1,32 @@
 package main
 
 import (
+	"context"
 	"github.com/charliecon/mr-mo-trial-run/mrmo"
+	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/credential_manager"
 	"log"
-	"time"
 )
 
 func main() {
+	const credsFilePath = "./creds.yml"
 	var (
-		resourceType = "genesyscloud_routing_skill"
-		data         = map[string]any{
-			"name": "Test Routing Skill 1202",
-		}
+		resourceType   = "genesyscloud_routing_skill"
+		sourceEntityId = "fb9127a3-5ec5-4a1b-abad-79779b48e225"
 	)
 
-	log.Println("Retrieving Mr Mo instance")
-	mrMo, err := mrmo.GetMrMoInstance(resourceType, data)
+	credData, err := credentialManager.ParseCredentialData(credsFilePath)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	log.Println("Successfully retrieved Mr Mo instance")
 
-	log.Printf("Creating %s", resourceType)
-	err = mrMo.Create()
+	var message = mrmo.Message{
+		ResourceType: resourceType,
+		EntityId:     sourceEntityId,
+		Operation:    mrmo.Create,
+	}
+
+	err = mrmo.ProcessMessage(context.Background(), message, *credData)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	log.Printf("Successfully created %s. ID: %s", resourceType, mrMo.Id)
-
-	log.Println("Sleeping for 2 seconds...")
-	time.Sleep(2 * time.Second)
-
-	log.Printf("Deleting %s %s", resourceType, mrMo.Id)
-	err = mrMo.Delete()
-	if err != nil {
-		panic(err)
-	}
-	log.Printf("Successfully deleted %s %s", resourceType, mrMo.Id)
 }

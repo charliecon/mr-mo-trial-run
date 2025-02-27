@@ -12,6 +12,7 @@ require (
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.36.1
 	github.com/mypurecloud/platform-client-sdk-go/v150 v150.1.0
 	github.com/mypurecloud/terraform-provider-genesyscloud v1.11.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (

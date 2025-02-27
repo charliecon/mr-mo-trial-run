@@ -3,11 +3,12 @@ package mrmo
 import (
 	"context"
 	"fmt"
+	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/credential_manager"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mypurecloud/platform-client-sdk-go/v150/platformclientv2"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider"
 	providerRegistrar "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
-	"os"
+	"log"
 	"testing"
 )
 
@@ -16,14 +17,50 @@ var mrMoInstance *MrMo
 type MrMo struct {
 	ResourceType   string
 	Id             string
-	Data           map[string]any
 	ResourceData   *schema.ResourceData
 	SchemaResource *schema.Resource
 	ProviderMeta   any
 }
 
-func (m *MrMo) Create() error {
-	diagErr := m.SchemaResource.CreateContext(context.Background(), m.ResourceData, m.ProviderMeta)
+type Operation string
+
+const (
+	Create Operation = "Create"
+	Update Operation = "Update"
+	Delete Operation = "Delete"
+)
+
+type Message struct {
+	ResourceType string
+	EntityId     string
+	Operation    Operation
+}
+
+func ProcessMessage(ctx context.Context, message Message, orgData credentialManager.CredentialManager) error {
+	fmt.Println(orgData.Source.ClientId, orgData.Source.ClientSecret)
+	mrMo, err := newMrMo(message.ResourceType, orgData)
+	if err != nil {
+		log.Println("Failed to initialise mr mo")
+		return err
+	}
+	mrMo.ResourceData.SetId(message.EntityId)
+
+	// read from source org
+	err = mrMo.Read(ctx)
+	if err != nil {
+		log.Println("Failed to read from source org")
+		return err
+	}
+
+	fmt.Println(mrMo.ResourceData.Get("name").(string))
+
+	// perform operation in target orgs
+
+	return nil
+}
+
+func (m *MrMo) Create(ctx context.Context) error {
+	diagErr := m.SchemaResource.CreateContext(ctx, m.ResourceData, m.ProviderMeta)
 	if diagErr != nil {
 		return fmt.Errorf("%v", diagErr)
 	}
@@ -31,29 +68,30 @@ func (m *MrMo) Create() error {
 	return nil
 }
 
-func (m *MrMo) Delete() error {
-	diagErr := m.SchemaResource.DeleteContext(context.Background(), m.ResourceData, m.ProviderMeta)
+func (m *MrMo) Read(ctx context.Context) error {
+	diagErr := m.SchemaResource.ReadContext(ctx, m.ResourceData, m.ProviderMeta)
+	if diagErr != nil {
+		return fmt.Errorf("%v", diagErr)
+	}
+	m.Id = m.ResourceData.Id()
+	return nil
+}
+
+func (m *MrMo) Delete(ctx context.Context) error {
+	diagErr := m.SchemaResource.DeleteContext(ctx, m.ResourceData, m.ProviderMeta)
 	if diagErr != nil {
 		return fmt.Errorf("%v", diagErr)
 	}
 	return nil
 }
 
-func GetMrMoInstance(resourceType string, data map[string]any) (_ *MrMo, err error) {
-	if mrMoInstance == nil {
-		mrMoInstance, err = newMrMo(resourceType, data)
-	}
-	return mrMoInstance, err
-}
-
-func newMrMo(resourceType string, data map[string]any) (*MrMo, error) {
+func newMrMo(resourceType string, orgData credentialManager.CredentialManager) (*MrMo, error) {
 	var m MrMo
 
 	m.ResourceType = resourceType
-	m.Data = data
 
 	// initialise ProviderMeta
-	providerMeta, err := getProviderConfig()
+	providerMeta, err := getProviderConfig(orgData)
 	if err != nil {
 		return nil, err
 	}
@@ -68,40 +106,28 @@ func newMrMo(resourceType string, data map[string]any) (*MrMo, error) {
 	m.SchemaResource = schemaResource
 
 	// initialise SchemaResource
-	resourceDataObject := createResourceDataObject(schemaResource.Schema, data)
+	resourceDataObject := createResourceDataObject(schemaResource.Schema, make(map[string]any))
 	m.ResourceData = resourceDataObject
 
 	return &m, nil
 }
 
-func createResourceDataObject(routingSkillSchema map[string]*schema.Schema, data map[string]any) *schema.ResourceData {
+func createResourceDataObject(resourceSchema map[string]*schema.Schema, data map[string]any) *schema.ResourceData {
 	var t testing.T
-	return schema.TestResourceDataRaw(&t, routingSkillSchema, data)
+	return schema.TestResourceDataRaw(&t, resourceSchema, data)
 }
 
-func getProviderConfig() (_ *provider.ProviderMeta, err error) {
+func getProviderConfig(orgData credentialManager.CredentialManager) (_ *provider.ProviderMeta, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("getProviderConfig: %w", err)
 		}
 	}()
 
-	const (
-		genesysCloudClientIdEnvVar     = "GENESYSCLOUD_OAUTHCLIENT_ID"
-		genesysCloudClientSecretEnvVar = "GENESYSCLOUD_OAUTHCLIENT_SECRET"
-	)
-
-	var (
-		clientId     = os.Getenv(genesysCloudClientIdEnvVar)
-		clientSecret = os.Getenv(genesysCloudClientSecretEnvVar)
-	)
-
-	if clientId == "" || clientSecret == "" {
-		return nil, fmt.Errorf("%s and %s must be set", genesysCloudClientIdEnvVar, genesysCloudClientSecretEnvVar)
-	}
-
 	config := platformclientv2.GetDefaultConfiguration()
-	err = config.AuthorizeClientCredentials(clientId, clientSecret)
+	config.BasePath = provider.GetRegionBasePath(orgData.Source.Region)
+
+	err = config.AuthorizeClientCredentials(orgData.Source.ClientId, orgData.Source.ClientSecret)
 	if err != nil {
 		return nil, err
 	}
