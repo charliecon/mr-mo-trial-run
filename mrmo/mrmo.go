@@ -5,11 +5,7 @@ import (
 	"fmt"
 	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/credential_manager"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/mypurecloud/platform-client-sdk-go/v150/platformclientv2"
-	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider"
-	providerRegistrar "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
 	"log"
-	"testing"
 )
 
 var mrMoInstance *MrMo
