@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mypurecloud/platform-client-sdk-go/v150/platformclientv2"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider"
-	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
+	providerRegistrar "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
 	"os"
 	"testing"
 )
@@ -60,7 +60,7 @@ func newMrMo(resourceType string, data map[string]any) (*MrMo, error) {
 	m.ProviderMeta = providerMeta
 
 	// initialise SchemaResource
-	allResources, _, _ := provider_registrar.GetAllResources()
+	allResources, _, _ := providerRegistrar.GetAllResources()
 	schemaResource, ok := allResources[resourceType]
 	if !ok {
 		return nil, fmt.Errorf("resource not found %s", resourceType)
@@ -86,13 +86,18 @@ func getProviderConfig() (_ *provider.ProviderMeta, err error) {
 		}
 	}()
 
+	const (
+		genesysCloudClientIdEnvVar     = "GENESYSCLOUD_OAUTHCLIENT_ID"
+		genesysCloudClientSecretEnvVar = "GENESYSCLOUD_OAUTHCLIENT_SECRET"
+	)
+
 	var (
-		clientId     = os.Getenv("GENESYSCLOUD_OAUTHCLIENT_ID")
-		clientSecret = os.Getenv("GENESYSCLOUD_OAUTHCLIENT_SECRET")
+		clientId     = os.Getenv(genesysCloudClientIdEnvVar)
+		clientSecret = os.Getenv(genesysCloudClientSecretEnvVar)
 	)
 
 	if clientId == "" || clientSecret == "" {
-		return nil, fmt.Errorf("GENESYSCLOUD_OAUTHCLIENT_ID and GENESYSCLOUD_OAUTHCLIENT_SECRET must be set")
+		return nil, fmt.Errorf("%s and %s must be set", genesysCloudClientIdEnvVar, genesysCloudClientSecretEnvVar)
 	}
 
 	config := platformclientv2.GetDefaultConfiguration()
