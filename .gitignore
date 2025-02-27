@@ -27,3 +27,5 @@ go.work.sum
 *.log
 
 .idea
+
+secrets/secrets.yml
