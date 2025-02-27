@@ -28,4 +28,4 @@ go.work.sum
 
 .idea
 
-secrets/secrets.yml
+mrmo/secrets/secrets.yml
