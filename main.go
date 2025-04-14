@@ -10,8 +10,11 @@ import (
 func main() {
 	const credsFilePath = "./creds.yml"
 	var (
-		resourceType   = "genesyscloud_routing_skill"
-		sourceEntityId = "fb9127a3-5ec5-4a1b-abad-79779b48e225"
+		//routingSkillResourceType   = "genesyscloud_routing_skill"
+		//sourceRoutingSKillEntityId = "fb9127a3-5ec5-4a1b-abad-79779b48e225"
+
+		groupResourceType = "genesyscloud_group"
+		groupEntityId     = "d6c70405-1351-49bf-a9fe-ec4ba2363ad2"
 	)
 
 	credData, err := credentialManager.ParseCredentialData(credsFilePath)
@@ -20,8 +23,8 @@ func main() {
 	}
 
 	var message = mrmo.Message{
-		ResourceType: resourceType,
-		EntityId:     sourceEntityId,
+		ResourceType: groupResourceType,
+		EntityId:     groupEntityId,
 		Operation:    mrmo.Create,
 	}
 

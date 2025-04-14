@@ -1,0 +1,20 @@
+{
+  "resource": {
+    "genesyscloud_group": {
+      "TestTest1234": {
+        "addresses": null,
+        "calls_enabled": false,
+        "description": null,
+        "member_ids": null,
+        "name": "TestTest1234",
+        "owner_ids": [
+          "6479f0d0-45ba-43a1-926c-e87ff061c477"
+        ],
+        "roles_enabled": false,
+        "rules_visible": true,
+        "type": "official",
+        "visibility": "members"
+      }
+    }
+  }
+}

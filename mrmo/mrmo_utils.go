@@ -4,7 +4,8 @@ import (
 	"fmt"
 	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/credential_manager"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/mypurecloud/platform-client-sdk-go/v150/platformclientv2"
+	"github.com/mypurecloud/platform-client-sdk-go/v154/platformclientv2"
+	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/mrmo"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider"
 	providerRegistrar "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
 	"testing"
@@ -22,8 +23,10 @@ func newMrMo(resourceType string, orgData credentialManager.CredentialManager) (
 	}
 	m.ProviderMeta = providerMeta
 
+	mrmo.Activate(providerMeta.ClientConfig)
+
 	// initialise SchemaResource
-	allResources, _, _ := providerRegistrar.GetAllResources()
+	allResources, _ := providerRegistrar.GetProviderResources()
 	schemaResource, ok := allResources[resourceType]
 	if !ok {
 		return nil, fmt.Errorf("resource not found %s", resourceType)

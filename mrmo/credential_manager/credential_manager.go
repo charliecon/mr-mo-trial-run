@@ -38,7 +38,3 @@ func ParseCredentialData(credsFilePath string) (*CredentialManager, error) {
 
 	return &secretManager, nil
 }
-
-func GetCredentials(orgId string) (*OrgData, error) {
-	return nil, nil
-}
