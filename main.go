@@ -3,18 +3,16 @@ package main
 import (
 	"context"
 	"github.com/charliecon/mr-mo-trial-run/mrmo"
-	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/credential_manager"
+	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
 	"log"
 )
 
 func main() {
 	const credsFilePath = "./creds.yml"
 	var (
-		//routingSkillResourceType   = "genesyscloud_routing_skill"
-		//sourceRoutingSKillEntityId = "fb9127a3-5ec5-4a1b-abad-79779b48e225"
-
-		groupResourceType = "genesyscloud_group"
-		groupEntityId     = "d6c70405-1351-49bf-a9fe-ec4ba2363ad2"
+		resourceType = "genesyscloud_routing_wrapupcode"
+		entityId     = "aba633c3-1ffc-4aa4-84f3-93129b55238a"
+		isDelete     = true
 	)
 
 	credData, err := credentialManager.ParseCredentialData(credsFilePath)
@@ -23,12 +21,11 @@ func main() {
 	}
 
 	var message = mrmo.Message{
-		ResourceType: groupResourceType,
-		EntityId:     groupEntityId,
-		Operation:    mrmo.Create,
+		ResourceType: resourceType,
+		EntityId:     entityId,
 	}
 
-	err = mrmo.ProcessMessage(context.Background(), message, *credData)
+	err = mrmo.ProcessMessage(context.Background(), message, *credData, isDelete)
 	if err != nil {
 		log.Fatal(err)
 	}

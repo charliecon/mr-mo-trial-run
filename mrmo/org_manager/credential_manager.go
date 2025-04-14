@@ -1,4 +1,4 @@
-package credential_manager
+package org_manager
 
 import (
 	"gopkg.in/yaml.v2"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-type CredentialManager struct {
+type OrgManager struct {
 	Source  OrgData   `yaml:"source"`
 	Targets []OrgData `yaml:"targets"`
 }
@@ -19,7 +19,7 @@ type OrgData struct {
 	Region       string `yaml:"region"`
 }
 
-func ParseCredentialData(credsFilePath string) (*CredentialManager, error) {
+func ParseCredentialData(credsFilePath string) (*OrgManager, error) {
 	filename, err := filepath.Abs(credsFilePath)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func ParseCredentialData(credsFilePath string) (*CredentialManager, error) {
 		return nil, err
 	}
 
-	var secretManager CredentialManager
+	var secretManager OrgManager
 	err = yaml.Unmarshal(yamlFile, &secretManager)
 	if err != nil {
 		return nil, err

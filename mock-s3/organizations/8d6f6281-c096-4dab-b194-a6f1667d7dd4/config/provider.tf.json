@@ -1,0 +1,19 @@
+{
+  "terraform": {
+    "required_providers": {
+      "genesyscloud": {
+        "source": "registry.terraform.io/mypurecloud/genesyscloud",
+        "version": "1.62.0"
+      }
+    }
+  },
+  "provider": {
+    "genesyscloud": [
+      {
+        "oauthclient_id": "<redacted>",
+        "oauthclient_secret": "<redacted>",
+        "aws_region": "us-east-1"
+      }
+    ]
+  }
+}

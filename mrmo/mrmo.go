@@ -2,16 +2,14 @@ package mrmo
 
 import (
 	"context"
-	"fmt"
-	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/credential_manager"
+	orgManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	providerRegistrar "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/tfexporter"
+	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/util"
 	"log"
-	"testing"
 )
-
-var mrMoInstance *MrMo
 
 type MrMo struct {
 	ResourceType   string
@@ -19,109 +17,71 @@ type MrMo struct {
 	ResourceData   *schema.ResourceData
 	SchemaResource *schema.Resource
 	ProviderMeta   any
+	OrgManager     *orgManager.OrgManager
 }
-
-type Operation string
-
-const (
-	Create Operation = "Create"
-	Update Operation = "Update"
-	Delete Operation = "Delete"
-)
 
 type Message struct {
 	ResourceType string
 	EntityId     string
-	Operation    Operation
 }
 
-func ProcessMessage(ctx context.Context, message Message, orgData credentialManager.CredentialManager) error {
-	fmt.Println(orgData.Source.ClientId, orgData.Source.ClientSecret)
-	mrMo, err := newMrMo(message.ResourceType, orgData)
+func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManager, delete bool) error {
+	var diags = make(diag.Diagnostics, 0)
+	defer func() {
+		printDiagnosticWarnings(diags)
+	}()
+
+	mrMo, err := newMrMo(message.ResourceType, om, message.EntityId)
 	if err != nil {
 		log.Println("Failed to initialise mr mo")
 		return err
 	}
 
-	rd := createExportResourceData(tfexporter.ResourceTfExport().Schema, tfexporter.ResourceType)
+	if delete {
+		diags = append(diags, mrMo.apply(nil, true)...)
+		if diags.HasError() {
+			return buildErrorFromDiagnostics(diags)
+		}
+		return nil
+	}
 
-	gcResourceExporter, diags := tfexporter.NewGenesysCloudResourceExporter(ctx, rd, mrMo.ProviderMeta, tfexporter.IncludeResources)
+	exportResourceConfig := createExportResourceData(tfexporter.ResourceTfExport().Schema, tfexporter.ResourceType)
+
+	gcResourceExporter, diags := tfexporter.NewGenesysCloudResourceExporter(ctx, exportResourceConfig, mrMo.ProviderMeta, tfexporter.IncludeResources)
 	if diags.HasError() {
-		return fmt.Errorf("%v", diags)
+		return buildErrorFromDiagnostics(diags)
 	}
 
 	exporter := providerRegistrar.GetResourceExporterByResourceType(message.ResourceType)
 
-	m, diags := gcResourceExporter.ExportForMrMo(message.ResourceType, exporter, message.EntityId)
+	m := gcResourceExporter.ExportForMrMo(message.ResourceType, exporter, message.EntityId, diags)
 	if diags.HasError() {
-		return fmt.Errorf("%v", diags)
+		return buildErrorFromDiagnostics(diags)
 	}
 
-	diags = append(diags, tfexporter.WriteConfigForMrMo(m, "./please.tf.json")...)
+	diags = mrMo.apply(m, false)
 	if diags.HasError() {
-		return fmt.Errorf("%v", diags)
+		return buildErrorFromDiagnostics(diags)
 	}
+
 	return nil
 }
 
-func createExportResourceData(s map[string]*schema.Schema, resType string) *schema.ResourceData {
-	config := map[string]any{
-		"include_state_file":       true,
-		"export_format":            "json",
-		"include_filter_resources": []any{resType},
-	}
+func (m *MrMo) apply(resourceConfig util.JsonMap, delete bool) (diags diag.Diagnostics) {
+	for _, target := range m.OrgManager.Targets {
+		// determine if resource file exists for this org
+		fm := newFileManager(target.Id, m.Id)
 
-	var t testing.T
-	return schema.TestResourceDataRaw(&t, s, config)
+		diags = append(diags, fm.updateTargetTfConfig(resourceConfig, delete)...)
+		if diags.HasError() {
+			return
+		}
+
+		// run targeted apply
+		diags = append(diags, runTofu(fm.targetConfigDir)...)
+		if diags.HasError() {
+			return
+		}
+	}
+	return
 }
-
-func (m *MrMo) Create(ctx context.Context) error {
-	diagErr := m.SchemaResource.CreateContext(ctx, m.ResourceData, m.ProviderMeta)
-	if diagErr != nil {
-		return fmt.Errorf("%v", diagErr)
-	}
-	m.Id = m.ResourceData.Id()
-	return nil
-}
-
-func (m *MrMo) Read(ctx context.Context) error {
-	diagErr := m.SchemaResource.ReadContext(ctx, m.ResourceData, m.ProviderMeta)
-	if diagErr != nil {
-		return fmt.Errorf("%v", diagErr)
-	}
-	m.Id = m.ResourceData.Id()
-	return nil
-}
-
-func (m *MrMo) Delete(ctx context.Context) error {
-	diagErr := m.SchemaResource.DeleteContext(ctx, m.ResourceData, m.ProviderMeta)
-	if diagErr != nil {
-		return fmt.Errorf("%v", diagErr)
-	}
-	return nil
-}
-
-/*
-	instanceState := &terraform.InstanceState{
-		ID: message.EntityId,
-	}
-
-	state, diagErr := mrMo.SchemaResource.RefreshWithoutUpgrade(ctx, instanceState, mrMo.ProviderMeta)
-	if diagErr.HasError() {
-		return fmt.Errorf("%v", diagErr)
-	}
-
-	resourceInfo := resource_exporter.ResourceInfo{
-		State:         state,
-		BlockLabel:    "hello",
-		OriginalLabel: "hello-og",
-		Type:          message.ResourceType,
-		BlockType:     "",
-		CtyType:       mrMo.SchemaResource.CoreConfigSchema().ImpliedType(),
-	}
-
-	fmt.Println("Here is the state:")
-	fmt.Println(state.String())
-	fmt.Println("here are the attributes:")
-	fmt.Println(state.Attributes)
-*/
