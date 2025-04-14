@@ -54,7 +54,8 @@ func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManag
 
 	exporter := providerRegistrar.GetResourceExporterByResourceType(message.ResourceType)
 
-	m := gcResourceExporter.ExportForMrMo(message.ResourceType, exporter, message.EntityId, diags)
+	m, exportDiags := gcResourceExporter.ExportForMrMo(message.ResourceType, exporter, message.EntityId)
+	diags = append(diags, exportDiags...)
 	if diags.HasError() {
 		return buildErrorFromDiagnostics(diags)
 	}
