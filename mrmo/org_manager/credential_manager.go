@@ -1,6 +1,7 @@
 package org_manager
 
 import (
+	"fmt"
 	"gopkg.in/yaml.v2"
 	"os"
 	"path/filepath"
@@ -37,4 +38,35 @@ func ParseCredentialData(credsFilePath string) (*OrgManager, error) {
 	}
 
 	return &secretManager, nil
+}
+
+const (
+	clientIdEnvVar     = "GENESYSCLOUD_OAUTHCLIENT_ID"
+	clientSecretEnvVar = "GENESYSCLOUD_OAUTHCLIENT_SECRET"
+	regionEnvVar       = "GENESYSCLOUD_REGION"
+)
+
+func (o *OrgData) SetTargetOrgCredentials() error {
+	return SetClientCredEnvVars(o.ClientId, o.ClientSecret, o.Region)
+}
+
+func SetClientCredEnvVars(id, secret, region string) (err error) {
+	setEnvVarFunc := func(envVar, value string) error {
+		if setErr := os.Setenv(envVar, value); err != nil {
+			return fmt.Errorf("failed to set env var '%s' to value '%s'. Error: %w", envVar, value, setErr)
+		}
+		return nil
+	}
+
+	if err = setEnvVarFunc(clientIdEnvVar, id); err != nil {
+		return err
+	}
+	if err = setEnvVarFunc(clientSecretEnvVar, secret); err != nil {
+		return err
+	}
+	return setEnvVarFunc(regionEnvVar, region)
+}
+
+func GetClientCredsEnvVars() (id, secret, region string) {
+	return os.Getenv(clientIdEnvVar), os.Getenv(clientSecretEnvVar), os.Getenv(regionEnvVar)
 }

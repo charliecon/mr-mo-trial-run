@@ -6,12 +6,7 @@ import (
 	"os/exec"
 )
 
-func runTofu(dir string) (diags diag.Diagnostics) {
-	// do not do anything yet
-	if true {
-		return
-	}
-
+func runTofu(dir, resourcePath string, isDelete bool) (diags diag.Diagnostics) {
 	// Initialize OpenTofu
 	initCmd := exec.Command("tofu", "init")
 	initCmd.Dir = dir
@@ -23,8 +18,13 @@ func runTofu(dir string) (diags diag.Diagnostics) {
 		return
 	}
 
+	applyCommand := []string{"apply", "-auto-approve"}
+	if !isDelete {
+		applyCommand = append(applyCommand, "-target", resourcePath)
+	}
+
 	// Apply the configuration
-	applyCmd := exec.Command("tofu", "apply", "-auto-approve")
+	applyCmd := exec.Command("tofu", applyCommand...)
 	applyCmd.Dir = dir
 	applyCmd.Stdout = os.Stdout
 	applyCmd.Stderr = os.Stderr
