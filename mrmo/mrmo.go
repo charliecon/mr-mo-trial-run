@@ -24,9 +24,10 @@ type MrMo struct {
 type Message struct {
 	ResourceType string
 	EntityId     string
+	IsDelete     bool
 }
 
-func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManager, delete bool) error {
+func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManager) error {
 	var diags = make(diag.Diagnostics, 0)
 	defer func() {
 		printDiagnosticWarnings(diags)
@@ -38,7 +39,7 @@ func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManag
 		return err
 	}
 
-	if delete {
+	if message.IsDelete {
 		diags = append(diags, mrMo.apply(nil, true)...)
 		if diags.HasError() {
 			return buildErrorFromDiagnostics(diags)

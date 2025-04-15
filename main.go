@@ -8,13 +8,10 @@ import (
 )
 
 func main() {
-	const (
-		credsFilePath = "./creds.yml"
-		isDelete      = true
-	)
+	const credsFilePath = "./creds.yml"
 
 	resourceType := "genesyscloud_routing_wrapupcode"
-	entityId := "ee5052a5-ebab-4d01-93f1-663602d64a5f"
+	entityId := "b039fe91-33e0-4f63-91fd-c1e164f21abe"
 
 	credData, err := credentialManager.ParseCredentialData(credsFilePath)
 	if err != nil {
@@ -24,9 +21,10 @@ func main() {
 	var message = mrmo.Message{
 		ResourceType: resourceType,
 		EntityId:     entityId,
+		IsDelete:     true,
 	}
 
-	err = mrmo.ProcessMessage(context.Background(), message, *credData, isDelete)
+	err = mrmo.ProcessMessage(context.Background(), message, *credData)
 	if err != nil {
 		log.Fatal(err)
 	}
