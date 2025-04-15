@@ -94,6 +94,7 @@ func printDiagnosticWarnings(diags diag.Diagnostics) {
 	}
 }
 
+// buildErrorFromDiagnostics converts a diagnostics slice to an error
 func buildErrorFromDiagnostics(diags diag.Diagnostics) error {
 	return fmt.Errorf("%v", diags)
 }

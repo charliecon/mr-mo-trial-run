@@ -14,7 +14,7 @@ func main() {
 	)
 
 	resourceType := "genesyscloud_routing_wrapupcode"
-	entityId := "6da92528-0107-4816-963b-cee291c0596c"
+	entityId := "ee5052a5-ebab-4d01-93f1-663602d64a5f"
 
 	credData, err := credentialManager.ParseCredentialData(credsFilePath)
 	if err != nil {

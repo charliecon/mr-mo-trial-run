@@ -78,7 +78,22 @@ func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManag
 }
 
 func (m *MrMo) apply(resourceConfig util.JsonMap, delete bool) (diags diag.Diagnostics) {
+	originalClientId, originalClientSecret, originalRegion := orgManager.GetClientCredsEnvVars()
+	defer func() {
+		// restore client cred env vars
+		err := orgManager.SetClientCredEnvVars(originalClientId, originalClientSecret, originalRegion)
+		if err != nil {
+			log.Printf("failed to restore client creds. Error: %s", err.Error())
+		}
+	}()
+
 	for _, target := range m.OrgManager.Targets {
+		err := target.SetTargetOrgCredentials()
+		if err != nil {
+			diags = append(diags, diag.FromErr(err)...)
+			break
+		}
+
 		// determine if resource file exists for this org
 		fm := newFileManager(target.Id, m.Id)
 
