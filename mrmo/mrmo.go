@@ -16,6 +16,7 @@ type MrMo struct {
 	Id             string
 	ResourceData   *schema.ResourceData
 	SchemaResource *schema.Resource
+	ResourcePath   string // determined after export
 	ProviderMeta   any
 	OrgManager     *orgManager.OrgManager
 }
@@ -47,7 +48,8 @@ func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManag
 
 	exportResourceConfig := createExportResourceData(tfexporter.ResourceTfExport().Schema, tfexporter.ResourceType)
 
-	gcResourceExporter, diags := tfexporter.NewGenesysCloudResourceExporter(ctx, exportResourceConfig, mrMo.ProviderMeta, tfexporter.IncludeResources)
+	gcResourceExporter, newExporterDiags := tfexporter.NewGenesysCloudResourceExporter(ctx, exportResourceConfig, mrMo.ProviderMeta, tfexporter.IncludeResources)
+	diags = append(diags, newExporterDiags...)
 	if diags.HasError() {
 		return buildErrorFromDiagnostics(diags)
 	}
@@ -60,7 +62,14 @@ func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManag
 		return buildErrorFromDiagnostics(diags)
 	}
 
-	diags = mrMo.apply(m, false)
+	resourcePath, err := parseResourcePathFromConfig(m, message.ResourceType)
+	if err != nil {
+		diags = append(diags, diag.FromErr(err)...)
+		return buildErrorFromDiagnostics(diags)
+	}
+	mrMo.ResourcePath = resourcePath
+
+	diags = append(diags, mrMo.apply(m, false)...)
 	if diags.HasError() {
 		return buildErrorFromDiagnostics(diags)
 	}
@@ -75,13 +84,13 @@ func (m *MrMo) apply(resourceConfig util.JsonMap, delete bool) (diags diag.Diagn
 
 		diags = append(diags, fm.updateTargetTfConfig(resourceConfig, delete)...)
 		if diags.HasError() {
-			return
+			break
 		}
 
 		// run targeted apply
-		diags = append(diags, runTofu(fm.targetConfigDir)...)
+		diags = append(diags, runTofu(fm.targetConfigDir, m.ResourcePath, delete)...)
 		if diags.HasError() {
-			return
+			break
 		}
 	}
 	return

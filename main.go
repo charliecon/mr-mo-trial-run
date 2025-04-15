@@ -8,12 +8,13 @@ import (
 )
 
 func main() {
-	const credsFilePath = "./creds.yml"
-	var (
-		resourceType = "genesyscloud_routing_wrapupcode"
-		entityId     = "aba633c3-1ffc-4aa4-84f3-93129b55238a"
-		isDelete     = true
+	const (
+		credsFilePath = "./creds.yml"
+		isDelete      = true
 	)
+
+	resourceType := "genesyscloud_routing_wrapupcode"
+	entityId := "6da92528-0107-4816-963b-cee291c0596c"
 
 	credData, err := credentialManager.ParseCredentialData(credsFilePath)
 	if err != nil {

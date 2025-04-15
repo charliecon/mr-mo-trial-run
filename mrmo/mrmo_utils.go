@@ -9,6 +9,8 @@ import (
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/mrmo"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider"
 	providerRegistrar "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
+	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/tfexporter"
+	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/util"
 	"log"
 	"testing"
 )
@@ -94,4 +96,34 @@ func printDiagnosticWarnings(diags diag.Diagnostics) {
 
 func buildErrorFromDiagnostics(diags diag.Diagnostics) error {
 	return fmt.Errorf("%v", diags)
+}
+
+// parseResourcePathFromConfig will parse the full resource path from the exported resource config
+func parseResourcePathFromConfig(resourceConfig util.JsonMap, resourceType string) (_ string, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("failed to parse resource path from exported resource config: %w", err)
+		}
+	}()
+
+	r, ok := resourceConfig["resource"].(any)
+	if !ok {
+		return "", fmt.Errorf("no resource block found in resource config")
+	}
+
+	resourceMap, ok := r.(map[string]tfexporter.ResourceJSONMaps)
+	if !ok {
+		return "", fmt.Errorf("failed to cast resource map. Expected map[string]any, got %T", r)
+	}
+
+	configMap, ok := resourceMap[resourceType]
+	if !ok || configMap == nil || len(configMap) == 0 {
+		return "", fmt.Errorf("failed to parse config for resource type '%s'", resourceType)
+	}
+
+	for resourceLabel, _ := range configMap {
+		return resourceType + "." + resourceLabel, nil
+	}
+
+	return "", fmt.Errorf("no resource label found for resource type '%s'", resourceType)
 }
