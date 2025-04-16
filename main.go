@@ -11,21 +11,35 @@ func main() {
 	const credsFilePath = "./creds.yml"
 
 	ctx := context.Background()
-	knowledgeBaseResourceType := "genesyscloud_knowledge_knowledgebase"
-	knowledgeBaseId := "314ba3df-1bd4-4681-b250-2207a6d97bc9"
-
-	//knowledgeDocumentResourceType := "genesyscloud_knowledge_document"
-	//documentId := "a9ae73da-eca6-459a-814e-8242c55edc9e," + knowledgeBaseId
 
 	credData, err := orgManager.ParseCredentialData(credsFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var message = mrmo.Message{
-		ResourceType: knowledgeBaseResourceType,
-		EntityId:     knowledgeBaseId,
-		IsDelete:     true,
+	processClt := false
+	delete := true
+
+	attemptLimitResourceType := "genesyscloud_outbound_attempt_limit"
+	attemptLimitId := "e6c22ee5-6dff-4da9-8344-e985a1a269e4"
+
+	cltResourceType := "genesyscloud_outbound_contact_list_template"
+	cltId := "87725a8f-b66d-45ef-9631-e816747ad5b7"
+
+	var message mrmo.Message
+
+	if processClt {
+		message = mrmo.Message{
+			ResourceType: cltResourceType,
+			EntityId:     cltId,
+			IsDelete:     delete,
+		}
+	} else {
+		message = mrmo.Message{
+			ResourceType: attemptLimitResourceType,
+			EntityId:     attemptLimitId,
+			IsDelete:     delete,
+		}
 	}
 
 	diags := mrmo.ProcessMessage(ctx, message, *credData)
