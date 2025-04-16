@@ -11,8 +11,11 @@ func main() {
 	const credsFilePath = "./creds.yml"
 
 	ctx := context.Background()
-	resourceType := "genesyscloud_knowledge_knowledgebase"
-	entityId := "314ba3df-1bd4-4681-b250-2207a6d97bc9"
+	knowledgeBaseResourceType := "genesyscloud_knowledge_knowledgebase"
+	knowledgeBaseId := "314ba3df-1bd4-4681-b250-2207a6d97bc9"
+
+	//knowledgeDocumentResourceType := "genesyscloud_knowledge_document"
+	//documentId := "a9ae73da-eca6-459a-814e-8242c55edc9e," + knowledgeBaseId
 
 	credData, err := orgManager.ParseCredentialData(credsFilePath)
 	if err != nil {
@@ -20,8 +23,8 @@ func main() {
 	}
 
 	var message = mrmo.Message{
-		ResourceType: resourceType,
-		EntityId:     entityId,
+		ResourceType: knowledgeBaseResourceType,
+		EntityId:     knowledgeBaseId,
 		IsDelete:     true,
 	}
 

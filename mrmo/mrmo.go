@@ -2,7 +2,7 @@ package mrmo
 
 import (
 	"context"
-	mock_dynamo "github.com/charliecon/mr-mo-trial-run/mock-dynamo"
+	mockDynamo "github.com/charliecon/mr-mo-trial-run/mock-dynamo"
 	orgManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -56,7 +56,8 @@ func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManag
 
 	resourceConfig = appendOutputBlockToConfig(resourceConfig, resourcePath, message.EntityId)
 
-	return append(diags, mrMo.applyWithOpenTofu(resourceConfig, false)...)
+	diags = append(diags, mrMo.applyWithOpenTofu(resourceConfig, false)...)
+	return diags
 }
 
 func (m *MrMo) applyWithOpenTofu(resourceConfig util.JsonMap, delete bool) (diags diag.Diagnostics) {
@@ -73,31 +74,32 @@ func (m *MrMo) applyWithOpenTofu(resourceConfig util.JsonMap, delete bool) (diag
 		err := target.SetTargetOrgCredentials()
 		if err != nil {
 			diags = append(diags, diag.FromErr(err)...)
-			break
+			return diags
 		}
 
-		resourceConfig, err = m.resolveResourceConfigDependencies(resourceConfig, target)
+		resourceConfigAfterResolvingGuids, err := m.resolveResourceConfigDependencies(resourceConfig, target)
 		if err != nil {
 			return diag.FromErr(err)
 		}
 
 		fm := newFileManager(target.Id, m.Id)
 
-		diags = append(diags, fm.updateTargetTfConfig(resourceConfig, delete)...)
+		diags = append(diags, fm.updateTargetTfConfig(resourceConfigAfterResolvingGuids, delete)...)
 		if diags.HasError() {
-			break
+			return diags
 		}
 
 		// run targeted apply
 		targetResourceId, applyDiags := runTofu(fm.targetConfigDir, m.Id, m.ResourcePath, delete)
 		diags = append(diags, applyDiags...)
 		if diags.HasError() {
-			break
+			return diags
 		}
 
 		err = m.updateDynamoTable(target.Id, targetResourceId, delete)
 		if err != nil {
-			return diag.FromErr(err)
+			diags = append(diags, diag.FromErr(err)...)
+			return diags
 		}
 	}
 	return
@@ -105,7 +107,7 @@ func (m *MrMo) applyWithOpenTofu(resourceConfig util.JsonMap, delete bool) (diag
 
 func (m *MrMo) updateDynamoTable(targetOrgId, targetResourceId string, delete bool) (err error) {
 	if !delete {
-		return mock_dynamo.SetItem(m.Id, targetOrgId, targetResourceId)
+		return mockDynamo.UpdateItem(m.Id, targetOrgId, targetResourceId)
 	}
-	return mock_dynamo.DeleteItem(m.Id)
+	return mockDynamo.DeleteItem(m.Id)
 }

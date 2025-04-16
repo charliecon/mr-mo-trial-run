@@ -9,9 +9,7 @@ import (
 	"os/exec"
 )
 
-func runTofu(dir, sourceEntityId, resourcePath string, isDelete bool) (string, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
+func runTofu(dir, sourceEntityId, resourcePath string, isDelete bool) (_ string, diags diag.Diagnostics) {
 	// Initialize OpenTofu
 	initCmd := exec.Command("tofu", "init")
 	initCmd.Dir = dir
@@ -19,7 +17,8 @@ func runTofu(dir, sourceEntityId, resourcePath string, isDelete bool) (string, d
 	initCmd.Stderr = os.Stderr
 
 	if err := initCmd.Run(); err != nil {
-		return "", append(diags, diag.FromErr(err)...)
+		diags = append(diags, diag.FromErr(err)...)
+		return "", diags
 	}
 
 	applyCommand := []string{"apply", "-auto-approve"}
@@ -34,7 +33,8 @@ func runTofu(dir, sourceEntityId, resourcePath string, isDelete bool) (string, d
 	applyCmd.Stderr = os.Stderr
 
 	if err := applyCmd.Run(); err != nil {
-		return "", append(diags, diag.FromErr(err)...)
+		diags = append(diags, diag.FromErr(err)...)
+		return "", diags
 	}
 
 	if isDelete {
@@ -43,7 +43,8 @@ func runTofu(dir, sourceEntityId, resourcePath string, isDelete bool) (string, d
 
 	targetEntityId, err := extractTargetEntityIdFromOutputs(dir, sourceEntityId)
 	if err != nil {
-		return "", append(diags, diag.FromErr(err)...)
+		diags = append(diags, diag.FromErr(err)...)
+		return "", diags
 	}
 
 	return targetEntityId, diags
@@ -75,5 +76,5 @@ func extractTargetEntityIdFromOutputs(dir, sourceEntityId string) (string, error
 		return output.Value, nil
 	}
 
-	return "", fmt.Errorf("could not find target entity ID in outputs for source entity '%s'", sourceEntityId)
+	return "", fmt.Errorf("could not find target entity ID in outputs for source entity '%s'. Dir: '%s'", sourceEntityId, dir)
 }

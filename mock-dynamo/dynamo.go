@@ -33,7 +33,7 @@ func DeleteItem(sourceEntityId string) error {
 	return writeData(jsonData, tableFilePath)
 }
 
-func SetItem(sourceGuid, targetOrgId, targetEntityId string) error {
+func UpdateItem(sourceGuid, targetOrgId, targetEntityId string) error {
 	jsonData, err := loadData()
 	if err != nil {
 		return err

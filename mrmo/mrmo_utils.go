@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	mock_dynamo "github.com/charliecon/mr-mo-trial-run/mock-dynamo"
+	mockDynamo "github.com/charliecon/mr-mo-trial-run/mock-dynamo"
 	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -147,27 +147,31 @@ func (m *MrMo) exportConfig(ctx context.Context, resourceId, resourceType string
 	return config, diags
 }
 
-// resolveResourceConfigDependencies will find GUIDS inside the resource config and
-// try to resolve them to GUIDs in the target org
+// resolveResourceConfigDependencies will find GUIDS inside the resource config (ignoring the output block) and try to resolve them to GUIDs in the target org.
+// This function will return an edited version of resourceConfig, but will not directly edit the parameter resourceConfig
 func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, target credentialManager.OrgData) (_ util.JsonMap, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("resolveResourceConfigDependencies: %w", err)
 		}
 	}()
+	newResourceConfig := make(util.JsonMap)
+	for k, v := range resourceConfig {
+		newResourceConfig[k] = v
+	}
 
-	guidReferencesInConfig, err := extractUUIDs(resourceConfig)
+	// take copy of output block before removing it
+	outputCopy := newResourceConfig["output"]
+	delete(newResourceConfig, "output")
+
+	guidReferencesInConfig, err := extractUUIDs(newResourceConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, guid := range guidReferencesInConfig {
-		// if we matched the source entity ID - continue. It is there as the name of an output variables
-		if guid == m.Id {
-			continue
-		}
 		// search for guid.target.Id value
-		item, err := mock_dynamo.GetItem(guid)
+		item, err := mockDynamo.GetItem(guid)
 		if err != nil {
 			log.Printf("Failed to read guid '%s' from dynamo. Error: %s", guid, err.Error())
 			continue
@@ -176,13 +180,16 @@ func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, ta
 		targetGuid := item[target.Id]
 
 		// replace guid with that value
-		resourceConfig, err = replaceGUID(resourceConfig, guid, targetGuid)
+		newResourceConfig, err = replaceGUID(newResourceConfig, guid, targetGuid)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return resourceConfig, err
+	// restore output block
+	newResourceConfig["output"] = outputCopy
+
+	return newResourceConfig, err
 }
 
 // extractUUIDs converts the input map to a string and finds all UUIDs
@@ -240,6 +247,8 @@ func replaceGUID(data util.JsonMap, oldGUID string, newGUID string) (_ util.Json
 	return result, err
 }
 
+// appendOutputBlockToConfig will append an output var to the resource config before applying the resource to the target org.
+// This output variable is useful for retrieving the ID of the target entity after it has been deployed.
 func appendOutputBlockToConfig(config util.JsonMap, resourcePath, sourceEntityId string) util.JsonMap {
 	config["output"] = map[string]map[string]string{
 		buildOutputKey(sourceEntityId): {
@@ -253,5 +262,14 @@ const outputPrefix = "mrmo_"
 
 // buildOutputKey will build the key of the output tf block. They must not start with a number, so the GUID alone will not do.
 func buildOutputKey(sourceEntityId string) string {
-	return outputPrefix + sourceEntityId
+	return outputPrefix + sanitizeString(sourceEntityId)
+}
+
+// sanitizeString replaces any character that is not alphanumeric or a hyphen with a hyphen.
+func sanitizeString(input string) string {
+	// Create regex that matches anything that is not a letter, number, or hyphen
+	reg := regexp.MustCompile(`[^a-zA-Z0-9-]+`)
+
+	// Replace all matches with a single hyphen
+	return reg.ReplaceAllString(input, "-")
 }
