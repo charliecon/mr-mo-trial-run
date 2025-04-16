@@ -3,17 +3,18 @@ package main
 import (
 	"context"
 	"github.com/charliecon/mr-mo-trial-run/mrmo"
-	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
+	orgManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
 	"log"
 )
 
 func main() {
 	const credsFilePath = "./creds.yml"
 
-	resourceType := "genesyscloud_routing_wrapupcode"
-	entityId := "b039fe91-33e0-4f63-91fd-c1e164f21abe"
+	ctx := context.Background()
+	resourceType := "genesyscloud_knowledge_knowledgebase"
+	entityId := "314ba3df-1bd4-4681-b250-2207a6d97bc9"
 
-	credData, err := credentialManager.ParseCredentialData(credsFilePath)
+	credData, err := orgManager.ParseCredentialData(credsFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,8 +25,8 @@ func main() {
 		IsDelete:     true,
 	}
 
-	err = mrmo.ProcessMessage(context.Background(), message, *credData)
-	if err != nil {
-		log.Fatal(err)
+	diags := mrmo.ProcessMessage(ctx, message, *credData)
+	if diags.HasError() {
+		log.Fatal(diags)
 	}
 }
