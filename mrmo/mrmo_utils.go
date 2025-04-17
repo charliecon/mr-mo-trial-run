@@ -88,17 +88,6 @@ func createExportResourceData(s map[string]*schema.Schema, resType string) *sche
 	return schema.TestResourceDataRaw(&t, s, config)
 }
 
-// printDiagnosticWarnings will print any diagnostics warnings, if any exist
-func printDiagnosticWarnings(diags diag.Diagnostics) {
-	if len(diags) == 0 || diags.HasError() {
-		return
-	}
-	log.Println("Diagnostic warnings: ")
-	for _, d := range diags {
-		fmt.Println(d)
-	}
-}
-
 // parseResourcePathFromConfig will parse the full resource path from the exported resource config
 func parseResourcePathFromConfig(resourceConfig util.JsonMap, resourceType string) (_ string, err error) {
 	defer func() {
@@ -129,6 +118,8 @@ func parseResourcePathFromConfig(resourceConfig util.JsonMap, resourceType strin
 	return "", fmt.Errorf("no resource label found for resource type '%s'", resourceType)
 }
 
+// exportConfig defines a export resource configuration, a GenesysCloudResourceExporter instance, and then invokes
+// ExportForMrMo; an edited version of the Export method that better suits Mr Mo's needs
 func (m *MrMo) exportConfig(ctx context.Context, resourceId, resourceType string) (_ util.JsonMap, diags diag.Diagnostics) {
 	exportResourceConfig := createExportResourceData(tfexporter.ResourceTfExport().Schema, tfexporter.ResourceType)
 
@@ -147,8 +138,8 @@ func (m *MrMo) exportConfig(ctx context.Context, resourceId, resourceType string
 	return config, diags
 }
 
-// resolveResourceConfigDependencies will find GUIDS inside the resource config (ignoring the output block) and try to resolve them to GUIDs in the target org.
-// This function will return an edited version of resourceConfig, but will not directly edit the parameter resourceConfig
+// resolveResourceConfigDependencies will find GUIDS inside the exported tf config and try to resolve them to GUIDs in the target org.
+// This function will return an edited version of resourceConfig, but will not directly edit the parameter resourceConfig.
 func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, target credentialManager.OrgData) (_ util.JsonMap, err error) {
 	defer func() {
 		if err != nil {
@@ -161,6 +152,8 @@ func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, ta
 	}
 
 	// take copy of output block before removing it
+	// Note: it is important to remove the output block because it contains
+	// references to GUIDs in the source org that we don't want to replace
 	outputCopy := newResourceConfig["output"]
 	delete(newResourceConfig, "output")
 

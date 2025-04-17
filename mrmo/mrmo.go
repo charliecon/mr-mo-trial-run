@@ -6,7 +6,7 @@ import (
 	orgManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/resource_exporter"
+	resourceExporter "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/resource_exporter"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/util"
 	"log"
 )
@@ -19,7 +19,7 @@ type MrMo struct {
 	ResourcePath   string // determined after export
 	ProviderMeta   any
 	OrgManager     *orgManager.OrgManager
-	Exporter       *resource_exporter.ResourceExporter
+	Exporter       *resourceExporter.ResourceExporter
 }
 
 type Message struct {
@@ -29,17 +29,13 @@ type Message struct {
 }
 
 func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManager) (diags diag.Diagnostics) {
-	defer func() {
-		printDiagnosticWarnings(diags)
-	}()
-
 	mrMo, err := newMrMo(message.ResourceType, om, message.EntityId)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	if message.IsDelete {
-		return mrMo.applyWithOpenTofu(nil, true)
+		return mrMo.applyResourceConfigToTargetOrgs(nil, true)
 	}
 
 	resourceConfig, exportDiags := mrMo.exportConfig(ctx, message.EntityId, message.ResourceType)
@@ -56,11 +52,11 @@ func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManag
 
 	resourceConfig = appendOutputBlockToConfig(resourceConfig, resourcePath, message.EntityId)
 
-	diags = append(diags, mrMo.applyWithOpenTofu(resourceConfig, false)...)
+	diags = append(diags, mrMo.applyResourceConfigToTargetOrgs(resourceConfig, false)...)
 	return diags
 }
 
-func (m *MrMo) applyWithOpenTofu(resourceConfig util.JsonMap, delete bool) (diags diag.Diagnostics) {
+func (m *MrMo) applyResourceConfigToTargetOrgs(resourceConfig util.JsonMap, delete bool) (diags diag.Diagnostics) {
 	originalClientId, originalClientSecret, originalRegion := orgManager.GetClientCredsEnvVars()
 	defer func() {
 		// restore client cred env vars
@@ -90,7 +86,7 @@ func (m *MrMo) applyWithOpenTofu(resourceConfig util.JsonMap, delete bool) (diag
 		}
 
 		// run targeted apply
-		targetResourceId, applyDiags := runTofu(fm.targetConfigDir, m.Id, m.ResourcePath, delete)
+		targetResourceId, applyDiags := applyWithOpenTofu(fm.targetConfigDir, m.Id, m.ResourcePath, delete)
 		diags = append(diags, applyDiags...)
 		if diags.HasError() {
 			return diags
