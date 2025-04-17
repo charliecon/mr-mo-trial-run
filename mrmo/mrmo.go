@@ -51,8 +51,8 @@ type Message struct {
 //     * Parses the resource path from the configuration
 //     * Appends necessary output blocks to the configuration (these are used to retrieve the target resource ID after apply)
 //     * Applies the configuration across target organizations
-func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManager) (diags diag.Diagnostics) {
-	mrMo, err := newMrMo(message.ResourceType, om, message.EntityId)
+func ProcessMessage(ctx context.Context, message Message, credentialsFilePath string) (diags diag.Diagnostics) {
+	mrMo, err := newMrMo(message.ResourceType, credentialsFilePath, message.EntityId)
 	if err != nil {
 		return diag.FromErr(err)
 	}

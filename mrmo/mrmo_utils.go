@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	mockDynamo "github.com/charliecon/mr-mo-trial-run/mock-dynamo"
-	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
+	orgManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mypurecloud/platform-client-sdk-go/v154/platformclientv2"
@@ -20,15 +20,20 @@ import (
 	"testing"
 )
 
-func newMrMo(resourceType string, orgData credentialManager.OrgManager, sourceEntityId string) (*MrMo, error) {
+func newMrMo(resourceType string, credentialsFile string, sourceEntityId string) (*MrMo, error) {
 	var m MrMo
 
+	credData, err := orgManager.ParseCredentialData(credentialsFile)
+	if err != nil {
+		return nil, err
+	}
+
 	m.ResourceType = resourceType
-	m.OrgManager = &orgData
+	m.OrgManager = credData
 	m.Id = sourceEntityId
 
 	// initialise ProviderMeta
-	providerMeta, err := getProviderConfig(orgData)
+	providerMeta, err := getProviderConfig(*credData)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +61,7 @@ func createResourceDataObject(resourceSchema map[string]*schema.Schema, data map
 	return schema.TestResourceDataRaw(&t, resourceSchema, data)
 }
 
-func getProviderConfig(orgData credentialManager.OrgManager) (_ *provider.ProviderMeta, err error) {
+func getProviderConfig(orgData orgManager.OrgManager) (_ *provider.ProviderMeta, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("getProviderConfig: %w", err)
@@ -111,7 +116,7 @@ func parseResourcePathFromConfig(resourceConfig util.JsonMap, resourceType strin
 		return "", fmt.Errorf("failed to parse config for resource type '%s'", resourceType)
 	}
 
-	for resourceLabel, _ := range configMap {
+	for resourceLabel := range configMap {
 		return resourceType + "." + resourceLabel, nil
 	}
 
@@ -140,7 +145,7 @@ func (m *MrMo) exportConfig(ctx context.Context, resourceId, resourceType string
 
 // resolveResourceConfigDependencies will find GUIDS inside the exported tf config and try to resolve them to GUIDs in the target org.
 // This function will return an edited version of resourceConfig, but will not directly edit the parameter resourceConfig.
-func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, target credentialManager.OrgData) (_ util.JsonMap, err error) {
+func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, target orgManager.OrgData) (_ util.JsonMap, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("resolveResourceConfigDependencies: %w", err)
