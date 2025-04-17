@@ -79,7 +79,7 @@ func DeleteItem(sourceEntityId string) error {
 //  4. If not found:
 //     - Creates a new item with the provided source and target information
 //  5. Persists the updated data back to storage
-func UpdateItem(sourceEntityId, targetOrgId, targetEntityId string) error {
+func UpdateItem(resourceType, sourceEntityId, targetOrgId, targetEntityId string) error {
 	table, err := loadData()
 	if err != nil {
 		return err
@@ -112,6 +112,7 @@ func UpdateItem(sourceEntityId, targetOrgId, targetEntityId string) error {
 	} else {
 		// Create new item
 		table.Items = append(table.Items, Item{
+			ResourceType:   resourceType,
 			SourceEntityId: sourceEntityId,
 			TargetInfo: []TargetInfo{
 				{

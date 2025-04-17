@@ -5,6 +5,7 @@ type Table struct {
 }
 
 type Item struct {
+	ResourceType   string       `json:"resourceType"`
 	SourceEntityId string       `json:"sourceEntityId"`
 	TargetInfo     []TargetInfo `json:"targetInfo"`
 }

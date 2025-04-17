@@ -140,7 +140,7 @@ func (m *MrMo) applyResourceConfigToTargetOrgs(resourceConfig util.JsonMap, dele
 		}
 
 		// Update mapping table accordingly
-		err = m.updateDynamoTable(target.OrgId, targetResourceId, delete)
+		err = m.updateDynamoTable(m.ResourceType, target.OrgId, targetResourceId, delete)
 		if err != nil {
 			diags = append(diags, diag.FromErr(err)...)
 			return diags
@@ -149,9 +149,9 @@ func (m *MrMo) applyResourceConfigToTargetOrgs(resourceConfig util.JsonMap, dele
 	return
 }
 
-func (m *MrMo) updateDynamoTable(targetOrgId, targetResourceId string, delete bool) (err error) {
+func (m *MrMo) updateDynamoTable(resourceType, targetOrgId, targetResourceId string, delete bool) (err error) {
 	if !delete {
-		return mockDynamo.UpdateItem(m.Id, targetOrgId, targetResourceId)
+		return mockDynamo.UpdateItem(resourceType, m.Id, targetOrgId, targetResourceId)
 	}
 	return mockDynamo.DeleteItem(m.Id)
 }
