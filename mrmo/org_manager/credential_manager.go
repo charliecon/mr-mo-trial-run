@@ -13,8 +13,8 @@ type OrgManager struct {
 }
 
 type OrgData struct {
-	OrgId string `yaml:"orgId"`
-	Name  string `yaml:"orgName"`
+	OrgId        string `yaml:"orgId"`
+	Name         string `yaml:"orgName"`
 	ClientId     string `yaml:"clientId"`
 	ClientSecret string `yaml:"clientSecret"`
 	Region       string `yaml:"region"`

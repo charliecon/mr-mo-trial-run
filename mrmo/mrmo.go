@@ -34,23 +34,23 @@ type Message struct {
 // Parameters:
 //   - ctx: Context for the operation
 //   - message: Message struct containing:
-//       * ResourceType: The type of resource being processed
-//       * EntityId: The identifier of the source entity to process
-//       * IsDelete: Flag indicating if this is a delete operation
+//   - ResourceType: The type of resource being processed
+//   - EntityId: The identifier of the source entity to process
+//   - IsDelete: Flag indicating if this is a delete operation
 //   - om: OrgManager instance for handling organization-specific operations
 //
 // Returns:
 //   - diag.Diagnostics: Collection of diagnostic messages and errors encountered during processing
 //
 // The function performs the following sequence:
-//   1. Initializes a new MrMo instance for the specified resource
-//   2. For delete operations:
-//      * Directly applies deletion across target organizations
-//   3. For create/update operations:
-//      * Exports the current resource configuration
-//      * Parses the resource path from the configuration
-//      * Appends necessary output blocks to the configuration (these are used to retrieve the target resource ID after apply)
-//      * Applies the configuration across target organizations
+//  1. Initializes a new MrMo instance for the specified resource
+//  2. For delete operations:
+//     * Directly applies deletion across target organizations
+//  3. For create/update operations:
+//     * Exports the current resource configuration
+//     * Parses the resource path from the configuration
+//     * Appends necessary output blocks to the configuration (these are used to retrieve the target resource ID after apply)
+//     * Applies the configuration across target organizations
 func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManager) (diags diag.Diagnostics) {
 	mrMo, err := newMrMo(message.ResourceType, om, message.EntityId)
 	if err != nil {
