@@ -170,7 +170,7 @@ func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, ta
 			continue
 		}
 
-		targetGuid := item[target.Id]
+		targetGuid := item[target.OrgId]
 
 		// replace guid with that value
 		newResourceConfig, err = replaceGUID(newResourceConfig, guid, targetGuid)
