@@ -25,9 +25,9 @@ func main() {
 	}()
 
 	delete := true
-	attemptLimitId := "dfada4b5-2293-4ffa-9af7-b2e53fadbdc4"
 
 	// process attempt limit
+	attemptLimitId := "dfada4b5-2293-4ffa-9af7-b2e53fadbdc4"
 	diags = append(diags, processResource(ctx, attemptLimitResourceType, attemptLimitId, delete)...)
 	if diags.HasError() {
 		log.Fatal(diags)

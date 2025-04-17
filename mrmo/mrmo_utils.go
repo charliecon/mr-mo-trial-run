@@ -169,13 +169,11 @@ func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, ta
 
 	for _, guid := range guidReferencesInConfig {
 		// search for guid.target.Id value
-		item, err := mockDynamo.GetItem(guid)
+		targetGuid, err := mockDynamo.GetTargetIdBySourceId(guid, target.OrgId)
 		if err != nil {
 			log.Printf("Failed to read guid '%s' from dynamo. Error: %s", guid, err.Error())
 			continue
 		}
-
-		targetGuid := item[target.OrgId]
 
 		// replace guid with that value
 		newResourceConfig, err = replaceGUID(newResourceConfig, guid, targetGuid)
