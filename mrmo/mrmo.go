@@ -2,11 +2,11 @@ package mrmo
 
 import (
 	"context"
+	mockDynamo "github.com/charliecon/mr-mo-trial-run/mock-dynamo"
 	orgManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	providerRegistrar "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
-	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/tfexporter"
+	resourceExporter "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/resource_exporter"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/util"
 	"log"
 )
@@ -19,6 +19,7 @@ type MrMo struct {
 	ResourcePath   string // determined after export
 	ProviderMeta   any
 	OrgManager     *orgManager.OrgManager
+	Exporter       *resourceExporter.ResourceExporter
 }
 
 type Message struct {
@@ -27,58 +28,35 @@ type Message struct {
 	IsDelete     bool
 }
 
-func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManager) error {
-	var diags = make(diag.Diagnostics, 0)
-	defer func() {
-		printDiagnosticWarnings(diags)
-	}()
-
+func ProcessMessage(ctx context.Context, message Message, om orgManager.OrgManager) (diags diag.Diagnostics) {
 	mrMo, err := newMrMo(message.ResourceType, om, message.EntityId)
 	if err != nil {
-		log.Println("Failed to initialise mr mo")
-		return err
+		return diag.FromErr(err)
 	}
 
 	if message.IsDelete {
-		diags = append(diags, mrMo.apply(nil, true)...)
-		if diags.HasError() {
-			return buildErrorFromDiagnostics(diags)
-		}
-		return nil
+		return mrMo.applyResourceConfigToTargetOrgs(nil, true)
 	}
 
-	exportResourceConfig := createExportResourceData(tfexporter.ResourceTfExport().Schema, tfexporter.ResourceType)
-
-	gcResourceExporter, newExporterDiags := tfexporter.NewGenesysCloudResourceExporter(ctx, exportResourceConfig, mrMo.ProviderMeta, tfexporter.IncludeResources)
-	diags = append(diags, newExporterDiags...)
-	if diags.HasError() {
-		return buildErrorFromDiagnostics(diags)
-	}
-
-	exporter := providerRegistrar.GetResourceExporterByResourceType(message.ResourceType)
-
-	m, exportDiags := gcResourceExporter.ExportForMrMo(message.ResourceType, exporter, message.EntityId)
+	resourceConfig, exportDiags := mrMo.exportConfig(ctx, message.EntityId, message.ResourceType)
 	diags = append(diags, exportDiags...)
 	if diags.HasError() {
-		return buildErrorFromDiagnostics(diags)
+		return diags
 	}
 
-	resourcePath, err := parseResourcePathFromConfig(m, message.ResourceType)
+	resourcePath, err := parseResourcePathFromConfig(resourceConfig, message.ResourceType)
 	if err != nil {
-		diags = append(diags, diag.FromErr(err)...)
-		return buildErrorFromDiagnostics(diags)
+		return append(diags, diag.FromErr(err)...)
 	}
 	mrMo.ResourcePath = resourcePath
 
-	diags = append(diags, mrMo.apply(m, false)...)
-	if diags.HasError() {
-		return buildErrorFromDiagnostics(diags)
-	}
+	resourceConfig = appendOutputBlockToConfig(resourceConfig, resourcePath, message.EntityId)
 
-	return nil
+	diags = append(diags, mrMo.applyResourceConfigToTargetOrgs(resourceConfig, false)...)
+	return diags
 }
 
-func (m *MrMo) apply(resourceConfig util.JsonMap, delete bool) (diags diag.Diagnostics) {
+func (m *MrMo) applyResourceConfigToTargetOrgs(resourceConfig util.JsonMap, delete bool) (diags diag.Diagnostics) {
 	originalClientId, originalClientSecret, originalRegion := orgManager.GetClientCredsEnvVars()
 	defer func() {
 		// restore client cred env vars
@@ -92,22 +70,40 @@ func (m *MrMo) apply(resourceConfig util.JsonMap, delete bool) (diags diag.Diagn
 		err := target.SetTargetOrgCredentials()
 		if err != nil {
 			diags = append(diags, diag.FromErr(err)...)
-			break
+			return diags
 		}
 
-		// determine if resource file exists for this org
+		resourceConfigAfterResolvingGuids, err := m.resolveResourceConfigDependencies(resourceConfig, target)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+
 		fm := newFileManager(target.Id, m.Id)
 
-		diags = append(diags, fm.updateTargetTfConfig(resourceConfig, delete)...)
+		diags = append(diags, fm.updateTargetTfConfig(resourceConfigAfterResolvingGuids, delete)...)
 		if diags.HasError() {
-			break
+			return diags
 		}
 
 		// run targeted apply
-		diags = append(diags, runTofu(fm.targetConfigDir, m.ResourcePath, delete)...)
+		targetResourceId, applyDiags := applyWithOpenTofu(fm.targetConfigDir, m.Id, m.ResourcePath, delete)
+		diags = append(diags, applyDiags...)
 		if diags.HasError() {
-			break
+			return diags
+		}
+
+		err = m.updateDynamoTable(target.Id, targetResourceId, delete)
+		if err != nil {
+			diags = append(diags, diag.FromErr(err)...)
+			return diags
 		}
 	}
 	return
+}
+
+func (m *MrMo) updateDynamoTable(targetOrgId, targetResourceId string, delete bool) (err error) {
+	if !delete {
+		return mockDynamo.UpdateItem(m.Id, targetOrgId, targetResourceId)
+	}
+	return mockDynamo.DeleteItem(m.Id)
 }

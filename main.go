@@ -2,30 +2,69 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/charliecon/mr-mo-trial-run/mrmo"
-	credentialManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
+	orgManager "github.com/charliecon/mr-mo-trial-run/mrmo/org_manager"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"log"
 )
 
+const credsFilePath = "./creds.yml"
+const attemptLimitResourceType = "genesyscloud_outbound_attempt_limit"
+const cltResourceType = "genesyscloud_outbound_contact_list_template"
+
 func main() {
-	const credsFilePath = "./creds.yml"
+	var (
+		ctx   = context.Background()
+		diags diag.Diagnostics
+	)
 
-	resourceType := "genesyscloud_routing_wrapupcode"
-	entityId := "b039fe91-33e0-4f63-91fd-c1e164f21abe"
+	defer func() {
+		printDiagnosticWarnings(diags)
+	}()
 
-	credData, err := credentialManager.ParseCredentialData(credsFilePath)
+	credData, err := orgManager.ParseCredentialData(credsFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var message = mrmo.Message{
-		ResourceType: resourceType,
-		EntityId:     entityId,
-		IsDelete:     true,
+	delete := true
+
+	attemptLimitId := "e6c22ee5-6dff-4da9-8344-e985a1a269e4"
+	cltId := "87725a8f-b66d-45ef-9631-e816747ad5b7"
+
+	// process attempt limit
+	message := mrmo.Message{
+		ResourceType: attemptLimitResourceType,
+		EntityId:     attemptLimitId,
+		IsDelete:     delete,
 	}
 
-	err = mrmo.ProcessMessage(context.Background(), message, *credData)
-	if err != nil {
-		log.Fatal(err)
+	diags = append(diags, mrmo.ProcessMessage(ctx, message, *credData)...)
+	if diags.HasError() {
+		log.Fatal(diags)
+	}
+
+	// process contact list template
+	message = mrmo.Message{
+		ResourceType: cltResourceType,
+		EntityId:     cltId,
+		IsDelete:     delete,
+	}
+
+	diags = append(diags, mrmo.ProcessMessage(ctx, message, *credData)...)
+	if diags.HasError() {
+		log.Fatal(diags)
+	}
+}
+
+// printDiagnosticWarnings will print any diagnostics warnings, if any exist
+func printDiagnosticWarnings(diags diag.Diagnostics) {
+	if len(diags) == 0 || diags.HasError() {
+		return
+	}
+	log.Println("Diagnostic warnings: ")
+	for _, d := range diags {
+		fmt.Println(d)
 	}
 }

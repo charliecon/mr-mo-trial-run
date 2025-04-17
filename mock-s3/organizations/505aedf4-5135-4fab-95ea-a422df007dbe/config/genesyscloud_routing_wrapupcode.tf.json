@@ -1,10 +1,10 @@
 {
   "resource": {
     "genesyscloud_routing_wrapupcode": {
-      "Win_1404": {
+      "wuc_1998": {
         "description": "test description",
-        "division_id": null,
-        "name": "Win 1504"
+        "division_id": "*",
+        "name": "Win 1604"
       }
     }
   }
