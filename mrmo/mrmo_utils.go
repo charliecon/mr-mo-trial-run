@@ -14,6 +14,7 @@ import (
 	providerRegistrar "github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/provider_registrar"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/tfexporter"
 	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/util"
+	"github.com/mypurecloud/terraform-provider-genesyscloud/genesyscloud/util/lists"
 	"log"
 	"regexp"
 	"strings"
@@ -93,11 +94,11 @@ func createExportResourceData(s map[string]*schema.Schema, resType string) *sche
 	return schema.TestResourceDataRaw(&t, s, config)
 }
 
-// parseResourcePathFromConfig will parse the full resource path from the exported resource config
-func parseResourcePathFromConfig(resourceConfig util.JsonMap, resourceType string) (_ string, err error) {
+// parseResourceLabelFromConfig will parse the resource label from the exported resource config
+func parseResourceLabelFromConfig(resourceConfig util.JsonMap, resourceType string) (_ string, err error) {
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("failed to parse resource path from exported resource config: %w", err)
+			err = fmt.Errorf("failed to parse resource label from exported resource config: %w", err)
 		}
 	}()
 
@@ -117,7 +118,7 @@ func parseResourcePathFromConfig(resourceConfig util.JsonMap, resourceType strin
 	}
 
 	for resourceLabel := range configMap {
-		return resourceType + "." + resourceLabel, nil
+		return resourceLabel, nil
 	}
 
 	return "", fmt.Errorf("no resource label found for resource type '%s'", resourceType)
@@ -151,21 +152,13 @@ func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, ta
 			err = fmt.Errorf("resolveResourceConfigDependencies: %w", err)
 		}
 	}()
-	newResourceConfig := make(util.JsonMap)
+
+	copiedConfig := make(util.JsonMap)
 	for k, v := range resourceConfig {
-		newResourceConfig[k] = v
+		copiedConfig[k] = v
 	}
 
-	// take copy of output block before removing it
-	// Note: it is important to remove the output block because it contains
-	// references to GUIDs in the source org that we don't want to replace
-	outputCopy := newResourceConfig["output"]
-	delete(newResourceConfig, "output")
-
-	guidReferencesInConfig, err := extractUUIDs(newResourceConfig)
-	if err != nil {
-		return nil, err
-	}
+	guidReferencesInConfig := m.extractGuidsUsingExporterRefAttrs(copiedConfig)
 
 	for _, guid := range guidReferencesInConfig {
 		// search for guid.target.Id value
@@ -176,39 +169,79 @@ func (m *MrMo) resolveResourceConfigDependencies(resourceConfig util.JsonMap, ta
 		}
 
 		// replace guid with that value
-		newResourceConfig, err = replaceGUID(newResourceConfig, guid, targetGuid)
+		copiedConfig, err = replaceGUID(copiedConfig, guid, targetGuid)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// restore output block
-	newResourceConfig["output"] = outputCopy
-
-	return newResourceConfig, err
+	return copiedConfig, err
 }
 
-// extractUUIDs converts the input map to a string and finds all UUIDs
-func extractUUIDs(data util.JsonMap) (_ []string, err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("extractUUIDs: %w", err)
-		}
-	}()
-
-	// Convert the data structure to JSON string
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
+// extractGuidsUsingExporterRefAttrs will use the ResourceExporter's RefAttr configuration to locate the UUIDs
+// inside the exported config.
+func (m *MrMo) extractGuidsUsingExporterRefAttrs(exportedConfig util.JsonMap) (uuids []string) {
+	if m.Exporter == nil || m.Exporter.RefAttrs == nil || len(m.Exporter.RefAttrs) == 0 {
+		return
 	}
 
-	// Convert to string
-	jsonStr := string(jsonBytes)
+	log.Println("Collecting RefAttr GUIDS for resource ", m.ResourcePath)
 
-	// Regular expression for UUID pattern (excluding the output variables which are prefixed with "{outputPrefix}")
-	uuidRegex := regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
+	resourceBlock := exportedConfig["resource"].(map[string]tfexporter.ResourceJSONMaps)
+	allResourceByResourceType := resourceBlock[m.ResourceType]
+	individualResourceConfig := allResourceByResourceType[m.ResourceLabel]
 
-	return uuidRegex.FindAllString(jsonStr, -1), nil
+	for path := range m.Exporter.RefAttrs {
+		valueFoundInExportedConfig := getValueAtPath(individualResourceConfig, path)
+		if valueFoundInExportedConfig == nil {
+			log.Printf("No value found at path '%s'", path)
+			continue
+		}
+
+		uuids = append(uuids, convertValueAtPathToStringSlice(valueFoundInExportedConfig)...)
+	}
+
+	log.Printf("Collected %d GUIDs for resource %s", len(uuids), m.ResourcePath)
+	return
+}
+
+func convertValueAtPathToStringSlice(v any) []string {
+	if vInterfaceSlice, ok := v.([]interface{}); ok {
+		return lists.InterfaceListToStrings(vInterfaceSlice)
+	} else if vStringSlice, ok := v.([]string); ok {
+		return vStringSlice
+	}
+	return []string{v.(string)}
+}
+
+func getValueAtPath(config util.JsonMap, path string) (v any) {
+	configCopy := replaceMap(config)
+
+	allKeys := strings.Split(path, ".")
+	for _, key := range allKeys {
+		valueAtKey := configCopy[key]
+		if valueAtKey == nil {
+			log.Printf("no value found at path '%s'", path)
+			return
+		}
+		if mapValue, ok := valueAtKey.(map[string]any); ok {
+			configCopy = replaceMap(mapValue)
+			continue
+		}
+		v = valueAtKey
+		break
+	}
+
+	return
+}
+
+// replaceMap will take the parameter m, make and return of clone of this param without directly affecting m
+func replaceMap(m map[string]any) map[string]any {
+	mm := make(map[string]any)
+	for k, v := range m {
+		mm[k] = v
+	}
+	return mm
 }
 
 // replaceGUID takes a JsonMap, finds all instances of oldGUID within the data structure
