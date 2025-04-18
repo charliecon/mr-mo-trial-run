@@ -16,10 +16,13 @@ type MrMo struct {
 	Id             string
 	ResourceData   *schema.ResourceData
 	SchemaResource *schema.Resource
-	ResourcePath   string // determined after export
 	ProviderMeta   any
 	OrgManager     *orgManager.OrgManager
 	Exporter       *resourceExporter.ResourceExporter
+
+	// determined after export
+	ResourcePath  string
+	ResourceLabel string
 }
 
 type Message struct {
@@ -67,13 +70,15 @@ func ProcessMessage(ctx context.Context, message Message, credentialsFilePath st
 		return diags
 	}
 
-	resourcePath, err := parseResourcePathFromConfig(resourceConfig, message.ResourceType)
+	resourceLabel, err := parseResourceLabelFromConfig(resourceConfig, message.ResourceType)
 	if err != nil {
 		return append(diags, diag.FromErr(err)...)
 	}
-	mrMo.ResourcePath = resourcePath
 
-	resourceConfig = appendOutputBlockToConfig(resourceConfig, resourcePath, message.EntityId)
+	mrMo.ResourceLabel = resourceLabel
+	mrMo.ResourcePath = message.ResourceType + "." + resourceLabel
+
+	resourceConfig = appendOutputBlockToConfig(resourceConfig, mrMo.ResourcePath, message.EntityId)
 
 	diags = append(diags, mrMo.applyResourceConfigToTargetOrgs(resourceConfig, false)...)
 	return diags
@@ -119,15 +124,17 @@ func (m *MrMo) applyResourceConfigToTargetOrgs(resourceConfig util.JsonMap, dele
 		}
 
 		// Resolve GUIDs in resourceConfig to target org GUIDs using the mapping table
-		resourceConfigAfterResolvingGuids, err := m.resolveResourceConfigDependencies(resourceConfig, target)
-		if err != nil {
-			return diag.FromErr(err)
+		if !delete {
+			resourceConfig, err = m.resolveResourceConfigDependencies(resourceConfig, target)
+			if err != nil {
+				return diag.FromErr(err)
+			}
 		}
 
 		fm := newFileManager(target.OrgId, m.Id)
 
 		// Update the tf file in s3 for the current target org
-		diags = append(diags, fm.updateTargetTfConfig(resourceConfigAfterResolvingGuids, delete)...)
+		diags = append(diags, fm.updateTargetTfConfig(resourceConfig, delete)...)
 		if diags.HasError() {
 			return diags
 		}
