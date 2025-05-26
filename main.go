@@ -27,14 +27,14 @@ func main() {
 	delete := true
 
 	// process attempt limit
-	attemptLimitId := "dfada4b5-2293-4ffa-9af7-b2e53fadbdc4"
+	attemptLimitId := "4bbad745-dee2-4adf-85ef-95698ec32b76"
 	diags = append(diags, processResource(ctx, attemptLimitResourceType, attemptLimitId, delete)...)
 	if diags.HasError() {
 		log.Fatal(diags)
 	}
 
 	// process contact list template
-	//cltId := "4ff035cb-8585-4880-99f7-5e414db62946"
+	//cltId := "017ae345-c827-456d-b780-512d353c6383"
 	//diags = append(diags, processResource(ctx, cltResourceType, cltId, delete)...)
 	//if diags.HasError() {
 	//	log.Fatal(diags)

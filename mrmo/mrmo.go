@@ -123,9 +123,13 @@ func (m *MrMo) applyResourceConfigToTargetOrgs(resourceConfig util.JsonMap, dele
 			return diags
 		}
 
+		resourceConfigCopy := make(util.JsonMap)
+		for k, v := range resourceConfig {
+			resourceConfigCopy[k] = v
+		}
 		// Resolve GUIDs in resourceConfig to target org GUIDs using the mapping table
 		if !delete {
-			resourceConfig, err = m.resolveResourceConfigDependencies(resourceConfig, target)
+			resourceConfigCopy, err = m.resolveResourceConfigDependencies(resourceConfigCopy, target)
 			if err != nil {
 				return diag.FromErr(err)
 			}
@@ -134,7 +138,7 @@ func (m *MrMo) applyResourceConfigToTargetOrgs(resourceConfig util.JsonMap, dele
 		fm := newFileManager(target.OrgId, m.Id)
 
 		// Update the tf file in s3 for the current target org
-		diags = append(diags, fm.updateTargetTfConfig(resourceConfig, delete)...)
+		diags = append(diags, fm.updateTargetTfConfig(resourceConfigCopy, delete)...)
 		if diags.HasError() {
 			return diags
 		}
